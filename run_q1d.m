@@ -1,10 +1,16 @@
 %% Code for Quasi 1-D Convergent Divergent Nozzle
 % This is the code for calculating flow inside a C-D Nozzle
-% close all;clear; clc;
-set(0,'defaultlinelinewidth',2,'defaultaxesfontsize',25,'defaultaxesfontname','Times');
 %% Set input values
+close all;clear; clc;
+tic;
+set(0,'defaultlinelinewidth',2,'defaultaxesfontsize',25,'defaultaxesfontname','Times');
+flux_scheme = 'flux_roe';%vanLeer'; % 'flux_central','flux_roe'
 % Time stepping settings
+N = 256;
+step_size = 0; % percent value for FD
 CSA_flag = 1;
+plot_iterations = 1;
+plot_solution = 1;
 iterations = 2000;
 isConverged = 0;
 toler = 1e-10;
@@ -14,12 +20,11 @@ explicit_flag = 0;
 %Grid parameters
 set(0,'defaultlinelinewidth',2,'defaultaxesfontsize',17);
 neq = 3;
-% N = 256;
 % Joe's example
 nozzle_length = 2;
 area_throat = 0.2;
 des_var_b = 0.4;
-step_size = 0; % percent value for FD
+%
 des_var_b = des_var_b + step_size/100*des_var_b;
 area_func = @(x) area_throat+des_var_b*( 1 + sin(pi*(x-0.5)) );
 dadx_func = @(x) des_var_b*pi*cos(pi*(x-0.5));
@@ -41,9 +46,6 @@ dadx_cc = dadx_func(x_cc); % dadx_cc(2:end+1)=dadx_cc; dadx_cc(end+1)=dadx_cc(en
 cell_vol = area_cc.*dx;
 % [x_f',area_f']
 % [area_cc',dadx_cc']
-fig_flow_soln=figure();
-plot(x_cc,area_cc','k');
-hold on;
 % Reference values
 t0      = 600.0; % K
 p0      = 300000.0; % Pa
@@ -76,11 +78,16 @@ rhobar_exact = prim_exact(1,:)/(p0/(r*t0));
 pbar_exact = prim_exact(3,:)/p0;
 psi_exact = (1./pbar_exact).^((gamma-1)/(gamma));
 M_exact = prim_exact(2,:)./sqrt(gamma*r*t0./psi_exact);
-figure(fig_flow_soln);
-plot(x_cc,[rhobar_exact.',M_exact.',pbar_exact.']);
-% legend('Nozzle','\rho_{bar}','M','p_{bar}','location','nw');
-xlabel('x');title('Exact solution to Q-1D Nozzle');
-grid on; hold on;
+if plot_solution == 1
+    fig_flow_soln=figure();
+    plot(x_cc,area_cc','k');
+    hold on;
+    figure(fig_flow_soln);
+    plot(x_cc,[rhobar_exact.',M_exact.',pbar_exact.']);
+    % legend('Nozzle','\rho_{bar}','M','p_{bar}','location','nw');
+    xlabel('x');title('Exact solution to Q-1D Nozzle');
+    grid on; hold on;
+end
 %% Initialize Solution
 % For isentropic expansion
 prim_cc = zeros(neq,N);
@@ -149,7 +156,7 @@ for n = 1:iterations
     rtime = rtime + min(dt);
     
     %% Form Residual
-    [Res, Res_gi, Res_go] = create_residual(prim_cc, prim_gc, area_f, dadx_cc, dx, t0, p0);
+    [Res, Res_gi, Res_go] = create_residual(flux_scheme, prim_cc, prim_gc, area_f, dadx_cc, dx, t0, p0);
     
     %% Check convergence
     [L2, resinit, conv] = check_iterative_convergence(n, Res, resinit, rtime, min(dt));
@@ -166,9 +173,9 @@ for n = 1:iterations
     if( (mod(n,iterout)==0) )
         write_output(n, x_cc, area_cc, prim_cc);
     end
-    %% Form LHS
+    %% Form LHS & RHS
     if explicit_flag ~= 1
-        [L, D, U, DGi, UGi, LGo, DGo] = fill_lhs(dx, area_f, dadx_cc, prim_cc, prim_gc, pback);
+        [L, D, U, DGi, UGi, LGo, DGo] = fill_lhs(flux_scheme, dx, area_f, dadx_cc, prim_cc, prim_gc, pback);
         Jacobian = zeros(3*N+6,3*N+6);
         RHS = zeros(3*N+6,1);
         for row = 2:N+1
@@ -217,29 +224,31 @@ for n = 1:iterations
         prim_gc = prim_gc + delta_prim_cc(:,[1,N+2]);
     end
     % Plot current solution
-    if n==1
-        scrsz = get(0,'ScreenSize');
-        fig_current_sol = figure('Position',[scrsz(3)/6 scrsz(4)/3 4*scrsz(3)/5 scrsz(4)/2]);
-        %             hold on;
-    else
-        rhobar = prim_cc(1,:)/(p0/(r*t0));
-        pbar = prim_cc(3,:)/p0;
-        psi = (1./pbar).^((gamma-1)/(gamma));
-        M = prim_cc(2,:)./sqrt(gamma*r*t0./psi);
-        figure(fig_current_sol)
-        subplot(1,3,1)
-        plot(x_cc,rhobar);
-        legend(['Iter=',num2str(n)]);
-        xlabel('x');ylabel('\rho');title('Density');
-        grid on;
-        subplot(1,3,2)
-        plot(x_cc,M);
-        xlabel('x');ylabel('M');title('Mach number');
-        grid on;
-        subplot(1,3,3)
-        plot(x_cc,pbar);%title('p');
-        xlabel('x');ylabel('p');title('Pressure');
-        grid on;
+    if plot_iterations == 1
+        if n==1
+            scrsz = get(0,'ScreenSize');
+            fig_current_sol = figure('Position',[scrsz(3)/6 scrsz(4)/3 4*scrsz(3)/5 scrsz(4)/2]);
+            %             hold on;
+        else
+            rhobar = prim_cc(1,:)/(p0/(r*t0));
+            pbar = prim_cc(3,:)/p0;
+            psi = (1./pbar).^((gamma-1)/(gamma));
+            M = prim_cc(2,:)./sqrt(gamma*r*t0./psi);
+            figure(fig_current_sol)
+            subplot(1,3,1)
+            plot(x_cc,rhobar);
+            legend(['Iter=',num2str(n)]);
+            xlabel('x');ylabel('\rho');title('Density');
+            grid on;
+            subplot(1,3,2)
+            plot(x_cc,M);
+            xlabel('x');ylabel('M');title('Mach number');
+            grid on;
+            subplot(1,3,3)
+            plot(x_cc,pbar);%title('p');
+            xlabel('x');ylabel('p');title('Pressure');
+            grid on;
+        end
     end
         %
     
@@ -275,11 +284,13 @@ end
 write_output(n, x_cc, area_cc, prim_cc);
 fclose all;
 %
-figure()
-semilogy(L2Mat(:,1:n_conv).')
-xlabel('Iteration number');ylabel('L_2 Norms');
-title('Flow solution congergence');
-legend('Cont.','Mom.','En.');
+if plot_solution == 1
+    figure()
+    semilogy(L2Mat(:,1:n_conv).')
+    xlabel('Iteration number');ylabel('L_2 Norms');
+    title('Flow solution congergence');
+    legend('Cont.','Mom.','En.');
+end
 %
 % figure()
 % semilogy(Linf')
@@ -291,13 +302,15 @@ rhobar = prim_cc(1,:)/(p0/(r*t0));
 pbar = prim_cc(3,:)/p0;
 psi = (1./pbar).^((gamma-1)/(gamma));
 M = prim_cc(2,:)./sqrt(gamma*r*t0./psi);
-figure(fig_flow_soln)
-plot(x_cc,[rhobar.',M.',pbar.'],'o');
-legend({'Nozzle','$\hat{\rho}$','$\hat{M}$','$\hat{p}$',...
-       '$\rho$','$M$','$p$'},...
-       'location','nw','Interpreter','latex');
-xlabel('x');title('CFD solution to Q-1D Nozzle');
-grid on;
+if plot_solution == 1
+    figure(fig_flow_soln)
+    plot(x_cc,[rhobar.',M.',pbar.'],'o');
+    legend({'Nozzle','$\hat{\rho}$','$\hat{M}$','$\hat{p}$',...
+        '$\rho$','$M$','$p$'},...
+        'location','nw','Interpreter','latex');
+    xlabel('x');title('CFD solution to Q-1D Nozzle');
+    grid on;
+end
 % Plot T0 and P0 calculated values
 M_cal = prim_cc(2,:)./sqrt(gamma*prim_cc(3,:)./prim_cc(1,:));
 psi_cal = 1 + (gamma-1)/2*M_cal.^2;
@@ -313,6 +326,8 @@ P0_cal = prim_cc(3,:).*psi.^(gamma/(gamma-1));
 % xlabel('x');title('P0 calculated');
 %% Run CSA
 save('Q1D_flow_soln.mat');
+time_primary = toc;
+fprintf('Primary analysis completed in %3.2f seconds!!!\n', time_primary);
 if CSA_flag == 1
     run_q1d_CSA();
 end

@@ -2,7 +2,14 @@ clc; clear; close all;
 
 %% Calculate true solutions
 NMat0 = [32,64,128,256,512,1024,2048];
-% NMat = [32,64,128];
+% NMat0 = [32,64,128];
+flux_scheme = 'flux_vanLeer';%roe';
+dir_name = ['Grid_convergence_',flux_scheme];
+if exist(dir_name,'dir') == 0
+    mkdir(dir_name);
+% else
+%     error('Directory already exists!');
+end
 h = NMat0(end)./NMat0;
 DE_2Norm_rho = zeros(size(h));
 DE_2Norm_u = zeros(size(h));
@@ -13,13 +20,13 @@ DE_InfNorm_p = zeros(size(h));
 for ii=1:length(NMat0)
     NMat = NMat0;    
     N = NMat(ii);
-    if exist(['Q1D_sens_local_soln_',num2str(N),'.mat'],'file') == 0
+    if exist([dir_name,'\','Q1D_sens_local_soln_',num2str(N),'.mat'],'file') == 0
         close all; clc;
         run_q1d;
-        movefile('Q1D_sens_local_soln.mat',['Q1D_sens_local_soln_',num2str(N),'.mat'])
-        movefile('Q1D_flow_soln.mat',['Q1D_flow_soln_',num2str(N),'.mat'])
+        movefile('Q1D_sens_local_soln.mat',[dir_name,'\','Q1D_sens_local_soln_',num2str(N),'.mat'])
+        movefile('Q1D_flow_soln.mat',[dir_name,'\','Q1D_flow_soln_',num2str(N),'.mat'])
     else
-        load(['Q1D_sens_local_soln_',num2str(N),'.mat']);
+        load([dir_name,'\','Q1D_sens_local_soln_',num2str(N),'.mat']);
     end
     h = NMat0(end)./NMat0;
     DE_2Norm_rho(ii) = sqrt( sum( abs( prim_cc_local(1,:) - prim_local_exact(1,:) ).^2  )/N );
@@ -28,7 +35,7 @@ for ii=1:length(NMat0)
     DE_InfNorm_rho(ii) = max( abs( prim_cc_local(1,:) - prim_local_exact(1,:) ) );
     DE_InfNorm_u(ii)   = max( abs( prim_cc_local(2,:) - prim_local_exact(2,:) ) );
     DE_InfNorm_p(ii)   = max( abs( prim_cc_local(3,:) - prim_local_exact(3,:) ) );
-    save('Grid_conv_study_Q1D.mat');
+    save([dir_name,'\','Grid_conv_study_Q1D.mat']);
 end
 
 RateOfConv = figure('Position',[50 50 scrsz(3)/1.1 scrsz(4)/1.7]);
@@ -38,7 +45,7 @@ loglog(h,[DE_2Norm_rho',DE_2Norm_u',DE_2Norm_p'],'o-');
 hold on;
 loglog(h,[DE_InfNorm_rho',DE_InfNorm_u',DE_InfNorm_p'],'o--');
 xlabel('Mesh refinement parameter, h');
-ylabel('Norms');
+ylabel('L^2 and L^{\infty} norms of error in \rho^{\prime}, u^{\prime}, p^{\prime}');
 title('Local Derivative Discretization Errors Norms: \epsilon_u = u^{\prime}_h - u^{\prime}_{exact}');
 legend('||\epsilon_{\rho}||_{2}','||\epsilon_u||_{2}','||\epsilon_p||_{2}',...
        '||\epsilon_{\rho}||_{\infty}','||\epsilon_u||_{\infty}','||\epsilon_p||_{\infty}',....
