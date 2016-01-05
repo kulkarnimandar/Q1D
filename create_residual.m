@@ -30,11 +30,11 @@ for f=2:faces-1
     Flux = flux_function(prim_cc(:,c),prim_cc(:,c+1),CSA_flag,prim_cc_flow(:,c),prim_cc_flow(:,c+1));
     Res(:,c) = Res(:,c) + Flux*area_f(f);
     Res(:,c+1) = Res(:,c+1) - Flux*area_f(f);
-    if CSA_flag == 1
-        Flux_primary = flux_function(prim_cc_flow(:,c),prim_cc_flow(:,c+1));
-        Res(:,c) = Res(:,c) + Flux_primary*area_p_f(f);
-        Res(:,c+1) = Res(:,c+1) - Flux_primary*area_p_f(f);
-    end
+%     if CSA_flag == 1
+%         Flux_primary = flux_function(prim_cc_flow(:,c),prim_cc_flow(:,c+1));
+%         Res(:,c) = Res(:,c) + Flux_primary*area_p_f(f);
+%         Res(:,c+1) = Res(:,c+1) - Flux_primary*area_p_f(f);
+%     end
     % Add source term
     S = source(prim_cc(:,c),dadx_cc(c),CSA_flag,prim_cc_flow(:,c),dadx_p_cc(c));
     Res(:,c) = Res(:,c) - S*dx(c);
@@ -43,17 +43,17 @@ end
 %% Contribution of f1 to Res(:,1)
 Flux = flux_function(prim_gi,prim_cc(:,1),CSA_flag,prim_gc_flow(:,1),prim_cc_flow(:,1));
 Res(:,1) = Res(:,1) - Flux*area_f(1);
-if CSA_flag == 1
-    Flux_primary = flux_function(prim_gc_flow(:,1),prim_cc_flow(:,1));
-    Res(:,1) = Res(:,1) - Flux_primary*area_p_f(1);
-end
+% if CSA_flag == 1
+%     Flux_primary = flux_function(prim_gc_flow(:,1),prim_cc_flow(:,1));
+%     Res(:,1) = Res(:,1) - Flux_primary*area_p_f(1);
+% end
 %% Contribution of f_(N+1) to Res(:,N)
 Flux = flux_function(prim_cc(:,N),prim_go,CSA_flag,prim_cc_flow(:,N),prim_gc_flow(:,2));
 Res(:,N) = Res(:,N) + Flux*area_f(N+1);
-if CSA_flag == 1
-    Flux_primary = flux_function(prim_cc_flow(:,N),prim_gc_flow(:,2));
-    Res(:,N) = Res(:,N) + Flux_primary*area_p_f(N+1);
-end
+% if CSA_flag == 1
+%     Flux_primary = flux_function(prim_cc_flow(:,N),prim_gc_flow(:,2));
+%     Res(:,N) = Res(:,N) + Flux_primary*area_p_f(N+1);
+% end
 %% Add source term for the cell #N
 S = source(prim_cc(:,N),dadx_cc(N),CSA_flag,prim_cc_flow(:,N),dadx_p_cc(N));
 Res(:,N) = Res(:,N) - S*dx(N);
@@ -568,7 +568,7 @@ else
     S = zeros(3,1);
     p = q_flow(3);
     p_p = q(3);
-    S(2) = p_p*dadx + p*dadx_p;
+%     S(2) = p_p*dadx + p*dadx_p;
 end
 end
 
